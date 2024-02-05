@@ -1,29 +1,23 @@
-# Menggunakan Node.js versi 14 sebagai base image
-FROM node:14
+# Menggunakan Node.js versi 14.21-alpine sebagai base image untuk membangun aplikasi kita.
+FROM node:14.21-alpine as builder
 
-# Menetapkan direktori kerja di dalam kontainer menjadi /src
-WORKDIR /src
+# Menetapkan /app sebagai direktori kerja di dalam image Docker. Semua perintah berikutnya akan dijalankan relatif terhadap direktori ini.
+WORKDIR /app
 
-# Menyalin package.json dan package-lock.json ke direktori kerja
+# Menyalin file package.json dan package-lock.json ke direktori kerja saat ini (/app) di dalam image Docker.
 COPY package*.json ./
 
-# Menginstal dependensi menggunakan npm
-RUN npm install
+# Mengonfigurasi npm untuk tidak memeriksa SSL. Ini diperlukan untuk mengakses registry npm jika Anda berada di belakang firewall yang membatasi lalu lintas HTTPS.
+RUN npm config set strict-ssl false
 
-# Mengunduh skrip wait-for-it.sh dari repositori
-RUN wget -O ./wait-for-it.sh https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
+# Menginstall dependencies aplikasi yang ditentukan dalam package.json.
+RUN npm ci
 
-# Membuat skrip wait-for-it.sh dapat dieksekusi
-RUN chmod +x ./wait-for-it.sh
+# Menyalin semua file JavaScript (.js) dari host ke direktori kerja saat ini (/app) di dalam image Docker.
+COPY ./*.js ./
 
-# Menyalin file index.js ke direktori kerja
-COPY index.js ./
+# Mengekspos port 3000 dari container ke host, sehingga aplikasi dapat menerima lalu lintas pada port ini.
+EXPOSE 3000
 
-# Menetapkan variabel lingkungan PORT menjadi 3000
-ENV PORT=3000
-
-# Mengekspos port yang ditentukan
-EXPOSE $PORT
-
-# Mendefinisikan perintah untuk menjalankan aplikasi setelah menunggu RabbitMQ untuk memulai
-CMD ["sh", "-c", "./wait-for-it.sh my-rabbitmq:5672 --timeout=30 -- node index.js"]
+# Menentukan perintah yang akan dijalankan secara default saat container Docker dijalankan. Dalam hal ini, kita menjalankan aplikasi Node.js dengan perintah "node index.js".
+CMD [ "node", "index.js" ]
